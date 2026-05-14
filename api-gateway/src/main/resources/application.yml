@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  redis:
+    host: localhost
+    port: 6379
+  cloud:
+    gateway:
+      # Enable dynamic routes from custom repository (disable automatic config loading)
+      routes: []   # all routes will be provided by DatabaseRouteDefinitionRepository
+      discovery:
+        locator:
+          enabled: false
+      default-filters:
+        - JwtAuth   # Apply JWT filter globally (can also be per-route)
+        - RequestRateLimiter
+        - name: CircuitBreaker
+          args:
+            name: globalCB
+            fallbackUri: forward:/fallback/orders
+    loadbalancer:
+      ribbon:
+        enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  metrics:
+    tags:
+      application: api-gateway
+  tracing:
+    sampling:
+      probability: 1.0   # Send all traces to Zipkin
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+    instances:
+      globalCB:
+        baseConfig: default
+jwt:
+  secret-key: "c2VjdXJlLWtleS1mb3Itand0LWF1dGgtbmVlZC0yNTYtYml0cy1taW5pbXVtLWZvci1IUzI1Ng=="
+# Redis rate limiter default settings
+resilience4j.ratelimiter:
+  instances:
+    default:
+      limitForPeriod: 10
+      limitRefreshPeriod: 1s
+      timeoutDuration: 0
